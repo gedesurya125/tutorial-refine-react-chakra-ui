@@ -1,4 +1,9 @@
-import { GitHubBanner, Refine, WelcomePage } from "@refinedev/core";
+import {
+  Authenticated,
+  GitHubBanner,
+  Refine,
+  WelcomePage,
+} from "@refinedev/core";
 import { DevtoolsPanel, DevtoolsProvider } from "@refinedev/devtools";
 import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
 
@@ -7,10 +12,12 @@ import {
   notificationProvider,
   RefineThemes,
   ThemedLayoutV2,
+  AuthPage,
 } from "@refinedev/chakra-ui";
 
 import { ChakraProvider } from "@chakra-ui/react";
 import routerBindings, {
+  CatchAllNavigate,
   DocumentTitleHandler,
   NavigateToResource,
   UnsavedChangesNotifier,
@@ -18,6 +25,11 @@ import routerBindings, {
 import dataProvider from "@refinedev/simple-rest";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
 import { ChakraUIInferencer } from "@refinedev/inferencer/chakra-ui";
+import { BlogPostList } from "./components/blogPost/BlogPostList";
+import { BlogPostEdit } from "./components/blogPost/BlogPostedit";
+import { BlogPostShow } from "./components/blogPost/BlogPostShow";
+import { BlogPostCreate } from "./components/blogPost/BlogPostCreate";
+import { authProvider, axiosInstance } from "./authProvider";
 
 function App() {
   return (
@@ -29,7 +41,11 @@ function App() {
         <Refine
           notificationProvider={notificationProvider()}
           routerProvider={routerBindings}
-          dataProvider={dataProvider("https://api.fake-rest.refine.dev")}
+          dataProvider={dataProvider(
+            "https://api.fake-rest.refine.dev",
+            axiosInstance
+          )}
+          authProvider={authProvider}
           resources={[
             {
               name: "blog_posts",
@@ -37,6 +53,9 @@ function App() {
               show: "/blog-posts/show/:id",
               create: "/blog-posts/create",
               edit: "/blog-posts/edit/:id",
+              meta: {
+                canDelete: true,
+              },
             },
           ]}
           options={{
@@ -47,11 +66,17 @@ function App() {
           }}
         >
           <Routes>
+            {/* //? MAIN PAGE */}
             <Route
               element={
-                <ThemedLayoutV2>
-                  <Outlet />
-                </ThemedLayoutV2>
+                <Authenticated
+                  key="authenticated-routes"
+                  fallback={<CatchAllNavigate to="/login" />}
+                >
+                  <ThemedLayoutV2>
+                    <Outlet />
+                  </ThemedLayoutV2>
+                </Authenticated>
               }
             >
               <Route
@@ -59,12 +84,43 @@ function App() {
                 element={<NavigateToResource resource="blog_posts" />}
               />
               <Route path="blog-posts">
-                <Route index element={<ChakraUIInferencer />} />
-                <Route path="show/:id" element={<ChakraUIInferencer />} />
-                <Route path="edit/:id" element={<ChakraUIInferencer />} />
-                <Route path="create" element={<ChakraUIInferencer />} />
+                <Route index element={<BlogPostList />} />
+                <Route path="show/:id" element={<BlogPostShow />} />
+                <Route path="edit/:id" element={<BlogPostEdit />} />
+                <Route path="create" element={<BlogPostCreate />} />
               </Route>
+            </Route>
 
+            {/* //? LOGIN PAGE */}
+            <Route
+              element={
+                <Authenticated key="one" fallback={<Outlet />}>
+                  <NavigateToResource />
+                </Authenticated>
+              }
+            >
+              <Route path="/login" element={<AuthPage type="login" />} />
+              <Route path="/register" element={<AuthPage type="register" />} />
+              <Route
+                path="/forgot-password"
+                element={<AuthPage type="forgotPassword" />}
+              />
+              <Route
+                path="/update-password"
+                element={<AuthPage type="updatePassword" />}
+              />
+            </Route>
+
+            {/* //? Error Page */}
+            <Route
+              element={
+                <Authenticated key="two" fallback={<Outlet />}>
+                  <ThemedLayoutV2>
+                    <Outlet />
+                  </ThemedLayoutV2>
+                </Authenticated>
+              }
+            >
               <Route path="*" element={<ErrorComponent />} />
             </Route>
           </Routes>
